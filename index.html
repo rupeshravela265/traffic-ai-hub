@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traffic.AI | Master Hub</title>
+    <!-- Core UI Frameworks -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Map Engine -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: #0b0e14; 
+            color: white; 
+            margin: 0; 
+            overflow: hidden; 
+        }
+
+        /* Glassmorphism Design System */
+        .glass { 
+            background: rgba(30, 41, 59, 0.6); 
+            backdrop-filter: blur(24px) saturate(180%); 
+            border: 1px solid rgba(255,255,255,0.12); 
+        }
+
+        .emergency-active { 
+            border: 2px solid #ef4444 !important; 
+            animation: pulse 2s infinite; 
+        }
+
+        @keyframes pulse { 
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 
+            70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); } 
+        }
+
+        .custom-scroll::-webkit-scrollbar { width: 5px; }
+        .custom-scroll::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); }
+        .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+
+        #map { height: 100%; width: 100%; border-radius: 40px; z-index: 1; }
+        
+        .search-input { 
+            background: rgba(0, 0, 0, 0.6); 
+            backdrop-filter: blur(12px); 
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+            color: white; 
+            padding: 10px 16px; 
+            border-radius: 14px; 
+            outline: none; 
+            width: 260px; 
+            transition: 0.3s; 
+        }
+        .search-input:focus { width: 320px; border-color: #3b82f6; }
+
+        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .profile-input {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            border-radius: 12px;
+            padding: 8px 12px;
+            width: 100%;
+            outline: none;
+            transition: 0.2s;
+        }
+        .profile-input:focus {
+            border-color: #3b82f6;
+            background: rgba(255,255,255,0.1);
+        }
+
+        .otp-input { 
+            width: 50px; height: 60px; text-align: center; font-size: 24px; font-weight: 800; 
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); 
+            border-radius: 12px; outline: none; transition: 0.3s; 
+        }
+        .otp-input:focus { border-color: #3b82f6; background: rgba(255,255,255,0.1); }
+
+        .form-select {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            border-radius: 12px;
+            padding: 12px;
+            outline: none;
+        }
+
+        .video-placeholder {
+            background: linear-gradient(135deg, #1a1c23 0%, #0b0e14 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        .scanline {
+            width: 100%;
+            height: 2px;
+            background: rgba(59, 130, 246, 0.2);
+            position: absolute;
+            top: 0;
+            left: 0;
+            animation: scan 4s linear infinite;
+            z-index: 10;
+        }
+        @keyframes scan { from { top: 0; } to { top: 100%; } }
+/* ===================================================== */
+/* FORCE SYSTEM THEME (OVERRIDES EVERYTHING) */
+/* ===================================================== */
+
+html[data-theme="dark"] {
+    --BG: #0b0e14;
+    --GLASS: rgba(30,41,59,0.6);
+    --TEXT: #ffffff;
+    --BORDER: rgba(255,255,255,0.12);
+    --MAP: brightness(1);
+}
+
+html[data-theme="light"] {
+    --BG: #f8fafc;
+    --GLASS: rgba(255,255,255,0.9);
+    --TEXT: #020617;
+    --BORDER: rgba(0,0,0,0.12);
+    --MAP: brightness(1.15) contrast(1.1);
+}
+
+/* BODY – FORCE */
+body {
+    background: var(--BG) !important;
+    color: var(--TEXT) !important;
+}
+
+/* GLASS – FORCE */
+.glass {
+    background: var(--GLASS) !important;
+    border-color: var(--BORDER) !important;
+}
+
+/* OVERRIDE ALL DARK BACKGROUNDS */
+.bg-black,
+.bg-black\/40,
+.bg-black\/60,
+.bg-\[\#0b0e14\] {
+    background-color: var(--BG) !important;
+}
+
+/* OVERRIDE LIGHT PANELS */
+.bg-white\/5,
+.bg-white\/10,
+.bg-white\/20 {
+    background-color: var(--GLASS) !important;
+}
+
+/* TEXT */
+.text-white {
+    color: var(--TEXT) !important;
+}
+
+/* INPUTS */
+.search-input,
+.profile-input,
+.otp-input,
+.form-select {
+    background-color: var(--GLASS) !important;
+    color: var(--TEXT) !important;
+}
+
+/* VIDEO PANEL */
+.video-placeholder {
+    background: linear-gradient(
+        135deg,
+        var(--GLASS),
+        var(--BG)
+    ) !important;
+}
+
+/* MAP */
+#map {
+    filter: var(--MAP) !important;
+    transition: filter 0.4s ease;
+}
+
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, memo } = React;
+
+        const MAP_DEFAULTS = { center: [28.6139, 77.2090], zoom: 15, tile: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' };
+        
+        const COUNTRIES = [
+            { code: '+91', name: 'India', flag: '🇮🇳' },
+            { code: '+1', name: 'USA', flag: '🇺🇸' },
+            { code: '+44', name: 'UK', flag: '🇬🇧' },
+            { code: '+971', name: 'UAE', flag: '🇦🇪' }
+        ];
+
+        const SIGNAL_NODES = [
+            { id: 'S1', name: 'Sector 4 Junction', pos: [28.6169, 77.2060] },
+            { id: 'S2', name: 'West Transit Hub', pos: [28.6119, 77.2140] }
+        ];
+
+        const ROAD_SEGMENTS = [
+            [[28.6139, 77.2090], [28.6169, 77.2060]], // Segment 1
+            [[28.6139, 77.2090], [28.6119, 77.2140]], // Segment 2
+            [[28.6169, 77.2060], [28.6180, 77.2100]]  // Segment 3
+        ];
+
+        // --- SVG ICON COMPONENT ---
+        const Icon = memo(({ name, size = 20, className = "" }) => {
+            const icons = {
+                'home': (<><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></>),
+                'activity': <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>,
+                'user': (<><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></>),
+                'logout': (<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></>),
+                'shield': <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>,
+                'alert': (<><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></>),
+                'lock': (<><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></>),
+                'mail': (<><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></>),
+                'smartphone': (<><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></>),
+                'x': (<><path d="M18 6 6 18"/><path d="m6 6 12 12"/></>),
+                'search': (<><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></>),
+                'target': (<><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></>),
+                'clock': (<><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></>),
+                'key': (<><path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4"/><circle cx="7.5" cy="16.5" r="4.5"/><path d="m10.5 13.5 5-5"/></>),
+                'bell': (<><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></>),
+                'globe': (<><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></>)
+            };
+            return (
+                <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                    {icons[name] || <circle cx="12" cy="12" r="10"/>}
+                </svg>
+            );
+        });
+
+        // --- MAP ENGINE ---
+        const MapEngine = memo(({ location, density, emergency, signalState, onMapClick }) => {
+            const mapRef = useRef(null);
+            const markerRef = useRef(null);
+            const signalsRef = useRef({});
+            const roadsRef = useRef([]);
+
+            useEffect(() => {
+                const m = L.map('map', { zoomControl: false }).setView([location.lat, location.lng], MAP_DEFAULTS.zoom);
+                L.tileLayer(MAP_DEFAULTS.tile).addTo(m);
+                
+                // Add Main Vehicle Tracker
+                markerRef.current = L.marker([location.lat, location.lng]).addTo(m);
+                
+                // Add Signal Nodes
+                SIGNAL_NODES.forEach(s => {
+                    const circle = L.circleMarker(s.pos, {
+                        radius: 8,
+                        weight: 3,
+                        color: 'white',
+                        fillOpacity: 1
+                    }).addTo(m);
+                    signalsRef.current[s.id] = circle;
+                });
+
+                // Add Road Segments (Traffic Overlay)
+                ROAD_SEGMENTS.forEach(coords => {
+                    const line = L.polyline(coords, {
+                        weight: 6,
+                        opacity: 0.8,
+                        lineCap: 'round'
+                    }).addTo(m);
+                    roadsRef.current.push(line);
+                });
+
+                m.on('click', (e) => {
+                    if (onMapClick) onMapClick(e.latlng);
+                });
+
+                mapRef.current = m;
+                return () => { if (mapRef.current) mapRef.current.remove(); };
+            }, []);
+
+            useEffect(() => {
+                if (mapRef.current && markerRef.current) {
+                    markerRef.current.setLatLng([location.lat, location.lng]);
+                    mapRef.current.panTo([location.lat, location.lng]);
+
+                    // Update Traffic Colors
+                    const trafficColor = density === 'CRITICAL' ? '#ef4444' : density === 'MODERATE' ? '#f59e0b' : '#22c55e';
+                    roadsRef.current.forEach(line => {
+                        line.setStyle({ color: trafficColor });
+                    });
+
+                    // Update Signal Colors
+                    const isGreen = emergency || signalState === 'GREEN';
+                    Object.values(signalsRef.current).forEach(sig => {
+                        sig.setStyle({ 
+                            fillColor: isGreen ? '#22c55e' : '#ef4444',
+                            color: isGreen ? '#166534' : '#991b1b'
+                        });
+                    });
+                }
+            }, [location, density, emergency, signalState]);
+
+            return <div id="map" className="glass h-full w-full"></div>;
+        });
+
+        // --- MAIN APPLICATION ---
+        const App = () => {
+            const [view, setView] = useState('login');
+            const [authMode, setAuthMode] = useState('login');
+            const [accTab, setAccTab] = useState('profile');
+            const [verifyType, setVerifyType] = useState('email');
+
+            // Identity State
+            const [user, setUser] = useState({ username: '', email: '', phone: '', countryCode: '+91' });
+            
+            // Edit Profile State
+            const [isEditing, setIsEditing] = useState(false);
+            const [editData, setEditData] = useState({ email: '', phone: '' });
+
+            // Telemetry State
+            const [stats, setStats] = useState({ vehicle_count: 0, density: 'OPTIMAL', emergency_detected: false, location: { lat: 28.6139, lng: 77.2090 } });
+            const [history, setHistory] = useState([]);
+            
+            // Map Control State
+            const [manualLoc, setManualLoc] = useState(null);
+            const [isFollowingLive, setIsFollowingLive] = useState(true);
+            const [globalSignal, setGlobalSignal] = useState('RED');
+
+            // --- Preferences State ---
+            const [prefs, setPrefs] = useState({
+                voice: true,
+                neural: false,
+                notifications: true,
+                lang: 'en-US'
+            });
+
+            // Global Signal Cycle (Mock Logic)
+            useEffect(() => {
+                const itv = setInterval(() => {
+                    setGlobalSignal(prev => prev === 'RED' ? 'GREEN' : 'RED');
+                }, 8000);
+                return () => clearInterval(itv);
+            }, []);
+
+            // Backend Polling
+            useEffect(() => {
+    if (view === 'login') return;
+    const poll = async () => {
+        try {
+            const res = await fetch('http://127.0.0.1:8000/ai-stats');
+            if (res.ok) {
+                const data = await res.json();
+                setStats(data);
+                
+                // IMPORTANT: This line connects the backend 'violations' to the UI 'history'
+                if (data.violations) {
+                    setHistory(data.violations);
+                }
+            }
+        } catch (e) { console.error("Polling error", e); }
+    };
+    const itv = setInterval(poll, 2000); 
+    poll(); 
+    return () => clearInterval(itv);
+}, [view]);
+
+            // --- AUTH HANDLERS ---
+            const handleLogin = async (e) => {
+                e.preventDefault();
+                try {
+                    const res = await fetch('http://127.0.0.1:8000/login', { 
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username: e.target.u.value, password: e.target.p.value })
+                    });
+                    if (res.ok) {
+                        const d = await res.json();
+                        const userData = { username: d.user, email: d.email || '', phone: d.phone || '' };
+                        setUser(userData);
+                        setEditData({ email: userData.email, phone: userData.phone });
+                        setView('home');
+                    } else alert("Access Denied. Check your Operator ID and Access Key.");
+                } catch (e) { alert("Backend Offline."); }
+            };
+
+            const handleSignup = async (e) => {
+                e.preventDefault();
+                try {
+                    const res = await fetch('http://127.0.0.1:8000/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            username: e.target.u.value,
+                            password: e.target.p.value,
+                            email: e.target.e.value,
+                            phone: e.target.ph.value
+                        })
+                    });
+                    if (res.ok) {
+                        alert("Node operator registered. Please log in.");
+                        setAuthMode('login');
+                    } else {
+                        const d = await res.json();
+                        alert(d.detail || "Registration failed.");
+                    }
+                } catch (e) { alert("Backend error."); }
+            };
+
+            const handleUpdateProfile = async () => {
+                try {
+                    const res = await fetch('http://127.0.0.1:8000/update-profile', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            username: user.username, 
+                            email: editData.email, 
+                            phone: editData.phone 
+                        })
+                    });
+                    if (res.ok) {
+                        setUser({ ...user, email: editData.email, phone: editData.phone });
+                        setIsEditing(false);
+                    }
+                } catch (e) { alert("Update Error."); }
+            };
+
+            const performSearch = async (query) => {
+                if (!query) return;
+                try {
+                    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+                    const data = await res.json();
+                    if (data && data.length > 0) {
+                        const newLoc = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+                        setManualLoc(newLoc);
+                        setIsFollowingLive(false);
+                    }
+                } catch (e) { console.error("Search failed", e); }
+            };
+
+            const onMapClick = (latlng) => {
+                setManualLoc({ lat: latlng.lat, lng: latlng.lng });
+                setIsFollowingLive(false);
+            };
+
+            const AuthHeader = ({ subtitle }) => (
+                <div className="mb-8">
+                    <h1 className="text-4xl font-black mb-1 tracking-tighter">Traffic.AI</h1>
+                    <p className="text-gray-500 uppercase text-[10px] tracking-widest font-bold">{subtitle}</p>
+                </div>
+            );
+
+            const activeLocation = isFollowingLive ? stats.location : (manualLoc || stats.location);
+
+            if (view === 'login') return (
+                <div className="min-h-screen flex items-center justify-center bg-[#0b0e14] relative overflow-hidden">
+                    <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-blue-600/10 blur-[120px] rounded-full" />
+                    <div className="glass w-full max-w-sm p-12 rounded-[50px] text-center shadow-2xl z-10 fade-in">
+                        
+                        {authMode === 'login' && (
+                            <form onSubmit={handleLogin} className="space-y-4">
+                                <AuthHeader subtitle="Secure Access Hub" />
+                                <input name="u" placeholder="Operator ID" required className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-blue-500 transition-all" />
+                                <input name="p" type="password" placeholder="Access Key" required className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-blue-500 transition-all" />
+                                <div className="text-right">
+                                    <button type="button" onClick={() => setAuthMode('forgot')} className="text-[10px] text-gray-500 font-bold hover:text-blue-400">Forgot Security Key?</button>
+                                </div>
+                                <button type="submit" className="w-full bg-blue-600 font-bold p-4 rounded-2xl shadow-xl active:scale-95 transition-all">Access Dashboard</button>
+                                <button type="button" onClick={() => setAuthMode('signup')} className="text-xs text-gray-500 mt-6 block mx-auto hover:text-white transition-colors">Register New Node Operator</button>
+                            </form>
+                        )}
+
+                        {authMode === 'signup' && (
+                            <form onSubmit={handleSignup} className="space-y-4 text-left">
+                                <AuthHeader subtitle="Register Operator Node" />
+                                <input name="u" placeholder="New Operator ID" required className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-blue-500 transition-all" />
+                                <input name="e" type="email" placeholder="Verification Email" required className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-blue-500 transition-all" />
+                                <div className="flex gap-2">
+                                    <select className="form-select w-28 text-xs font-bold" defaultValue="+91">
+                                        {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.flag} {c.code}</option>)}
+                                    </select>
+                                    <input name="ph" placeholder="Phone Number" required className="flex-1 bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-blue-500 transition-all" />
+                                </div>
+                                <input name="p" type="password" placeholder="New Access Key" required className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-blue-500 transition-all" />
+                                <button type="submit" className="w-full bg-emerald-600 font-bold p-4 rounded-2xl shadow-lg mt-4 active:scale-95 transition-all">Confirm Identity</button>
+                                <button type="button" onClick={() => setAuthMode('login')} className="text-xs text-gray-500 w-full text-center mt-2">Back to Secure Login</button>
+                            </form>
+                        )}
+
+                        {authMode === 'forgot' && (
+                            <div className="space-y-6">
+                                <AuthHeader subtitle="Identity Recovery" />
+                                <p className="text-xs text-gray-400">Choose your recovery channel:</p>
+                                <div className="flex gap-4">
+                                    <button onClick={() => {setVerifyType('email'); setAuthMode('verify');}} className="flex-1 glass p-6 rounded-2xl flex flex-col items-center gap-3 hover:bg-blue-600 transition-all active:scale-95">
+                                        <Icon name="mail" size={24} /> <span className="text-[10px] font-bold">EMAIL</span>
+                                    </button>
+                                    <button onClick={() => {setVerifyType('phone'); setAuthMode('verify');}} className="flex-1 glass p-6 rounded-2xl flex flex-col items-center gap-3 hover:bg-blue-600 transition-all active:scale-95">
+                                        <Icon name="smartphone" size={24} /> <span className="text-[10px] font-bold">SMS</span>
+                                    </button>
+                                </div>
+                                <button onClick={() => setAuthMode('login')} className="text-xs text-gray-500 mt-4 block mx-auto">Cancel Recovery</button>
+                            </div>
+                        )}
+
+                        {authMode === 'verify' && (
+                            <form onSubmit={(e) => { e.preventDefault(); setAuthMode('login'); }} className="space-y-10">
+                                <AuthHeader subtitle="Security Verification" />
+                                <p className="text-xs text-gray-400 italic">Security pin sent to your {verifyType}.</p>
+                                <div className="flex justify-center gap-3">
+                                    {[0,1,2,3].map(i => <input key={i} type="text" maxLength="1" className="otp-input" required autoFocus={i === 0} />)}
+                                </div>
+                                <button type="submit" className="w-full bg-orange-600 font-bold p-4 rounded-2xl shadow-lg active:scale-95 transition-all">Verify Hub Identity</button>
+                                <button type="button" onClick={() => setAuthMode('forgot')} className="text-xs text-gray-500 w-full text-center">Back to Recovery Channels</button>
+                            </form>
+                        )}
+                    </div>
+                </div>
+            );
+
+            return (
+                <div className="min-h-screen flex animate-in fade-in duration-700">
+                    <aside className="w-64 fixed h-screen bg-black/40 backdrop-blur-3xl border-r border-white/5 flex flex-col p-6 z-50">
+                        <div className="flex items-center gap-3 mb-12 px-2">
+                            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center"><Icon name="activity" size={18} /></div>
+                            <h1 className="text-xl font-black text-white tracking-tighter">TRAFFIC.AI</h1>
+                        </div>
+                        <nav className="flex-1 space-y-2">
+                            {[
+                                { id: 'home', icon: 'home', label: 'Overview' },
+                                { id: 'dashboard', icon: 'activity', label: 'Analytics' },
+                                { id: 'account', icon: 'user', label: 'Account' }
+                            ].map(item => (
+                                <button key={item.id} onClick={() => setView(item.id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${view === item.id ? 'bg-blue-600 shadow-xl shadow-blue-500/30 text-white' : 'text-gray-400 hover:bg-white/5'}`}>
+                                    <Icon name={item.icon} />
+                                    <span className="capitalize font-bold">{item.label}</span>
+                                </button>
+                            ))}
+                        </nav>
+                        <button onClick={() => setView('login')} className="flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-400/5 transition-all"><Icon name="logout" /> Logout</button>
+                    </aside>
+
+                    <main className="flex-1 ml-64 p-10 overflow-y-auto h-screen custom-scroll">
+                        <header className="flex justify-between items-center mb-10">
+                            <h2 className="text-3xl font-black tracking-tight uppercase tracking-tighter">{view} node</h2>
+                            <div className="bg-white/5 px-4 py-2 rounded-full border border-white/10 flex items-center gap-2">
+                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                                <span className="text-[10px] font-black uppercase tracking-widest">Global Node Sync Active</span>
+                            </div>
+                        </header>
+
+                        {view === 'home' && (
+                            <div className="grid grid-cols-4 gap-6 auto-rows-[180px]">
+                                <div className="col-span-2 row-span-2 glass rounded-[45px] p-8 bg-gradient-to-br from-blue-600/10 to-transparent">
+                                    <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-4">Traffic Volume Pulse</p>
+                                    <h3 className="text-7xl font-black tracking-tighter text-white">{1400 + stats.vehicle_count}</h3>
+                                    <p className="text-xs font-bold text-gray-500 mt-4 uppercase tracking-widest">+12% From Previous Hour</p>
+                                </div>
+                                <div className={`row-span-2 glass rounded-[45px] p-8 transition-all duration-500 ${stats.emergency_detected ? 'emergency-active' : ''}`}>
+                                    <Icon name="alert" size={32} className={stats.emergency_detected ? 'text-red-500' : 'text-gray-700'} />
+                                    <p className="text-[10px] font-black text-gray-500 uppercase mt-6 tracking-widest">Route Priority</p>
+                                    <h4 className="text-2xl font-black mt-2">{stats.emergency_detected ? 'FORCED PREEMPTION' : 'NORMAL SCAN'}</h4>
+                                </div>
+                                <div className="glass rounded-[40px] p-6 flex flex-col justify-center">
+                                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Density</p>
+                                    <h4 className={`text-3xl font-black ${stats.density === 'CRITICAL' ? 'text-red-500' : 'text-blue-500'}`}>{stats.density}</h4>
+                                </div>
+                                <div className="col-span-4 row-span-4 glass rounded-[50px] overflow-hidden shadow-2xl relative">
+                                    <MapEngine 
+                                        location={activeLocation} 
+                                        density={stats.density}
+                                        emergency={stats.emergency_detected} 
+                                        signalState={globalSignal}
+                                        onMapClick={onMapClick} 
+                                    />
+                                    
+                                    {/* MAP OVERLAY: SEARCH & LOCATOR */}
+                                    <div className="absolute top-8 left-8 z-[1000] flex gap-3">
+                                        <div className="relative group">
+                                            <input 
+                                                type="text" 
+                                                className="search-input" 
+                                                placeholder="Search Node Location..." 
+                                                onKeyDown={(e) => e.key === 'Enter' && performSearch(e.target.value)}
+                                            />
+                                            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500"><Icon name="search" size={16} /></div>
+                                        </div>
+                                        <button 
+                                            onClick={() => setIsFollowingLive(!isFollowingLive)}
+                                            className={`px-6 py-2 rounded-2xl font-bold text-xs flex items-center gap-2 transition-all ${isFollowingLive ? 'bg-blue-600 text-white shadow-lg' : 'bg-black/60 text-gray-400'}`}
+                                        >
+                                            <Icon name="target" size={16} /> {isFollowingLive ? 'Live Tracking' : 'Manual Lock'}
+                                        </button>
+                                    </div>
+
+                                    <div className="absolute bottom-8 left-8 z-[1000] flex flex-col gap-1 pointer-events-none">
+                                        <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest drop-shadow">Traffic Overlay Active</p>
+                                        <p className="text-xs font-bold text-gray-300 drop-shadow-md">
+                                            {isFollowingLive ? 'SATELLITE TELEMETRY - AUTO FOLLOW' : `MANUAL PIN: ${activeLocation.lat.toFixed(4)}, ${activeLocation.lng.toFixed(4)}`}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {view === 'dashboard' && (
+    <div className="grid grid-cols-3 gap-8 h-full fade-in">
+        <div className="col-span-2 flex flex-col gap-6">
+            {/* 1080p VIDEO PANEL */}
+            <div className="glass rounded-[45px] shadow-2xl overflow-hidden border border-white/10 relative group aspect-video">
+                <img 
+                    src="http://127.0.0.1:8000/video_feed" 
+                    alt="AI Traffic Feed"
+                    className="w-full h-full object-cover" 
+                    onError={(e) => { e.target.src = "https://via.placeholder.com/1920x1080?text=Camera+Offline"; }}
+                />
+                <div className="scanline"></div>
+                <div className="absolute top-8 left-8 flex items-center gap-4 z-20">
+                    <div className="bg-red-600 px-3 py-1 rounded text-[10px] font-black tracking-widest flex items-center gap-2 animate-pulse">
+                        <div className="w-1.5 h-1.5 bg-white rounded-full"></div> LIVE AI ANALYSIS
+                    </div>
+                    <div className="bg-black/60 backdrop-blur px-3 py-1 rounded text-[10px] font-bold tracking-widest text-gray-300">1920x1080 60FPS</div>
+                </div>
+            </div>
+
+            {/* PERFORMANCE STATS */}
+            <div className="grid grid-cols-3 gap-6">
+                <div className="glass p-6 rounded-[35px] text-center">
+                    <p className="text-[10px] font-black text-gray-500 uppercase mb-2">AI Confidence</p>
+                    <h4 className="text-2xl font-black text-green-500">98.4%</h4>
+                </div>
+                <div className="glass p-6 rounded-[35px] text-center">
+                    <p className="text-[10px] font-black text-gray-500 uppercase mb-2">Vehicle Detected</p>
+                    <h4 className="text-2xl font-black">{stats.vehicle_count}</h4>
+                </div>
+                <div className="glass p-6 rounded-[35px] text-center">
+                    <p className="text-[10px] font-black text-gray-500 uppercase mb-2">Latency</p>
+                    <h4 className="text-2xl font-black text-blue-400">12ms</h4>
+                </div>
+            </div>
+        </div>
+
+        {/* VIOLATION & EMERGENCY LOG */}
+        <div className="glass rounded-[45px] p-8 flex flex-col h-full overflow-hidden shadow-2xl">
+            <h3 className="text-sm font-black mb-6 uppercase tracking-widest text-gray-400">Active Violation Monitor</h3>
+            <div className="flex-1 overflow-y-auto space-y-3 custom-scroll pr-2">
+                {history.length > 0 ? history.map((v, i) => (
+                    <div key={i} className={`p-4 rounded-2xl border transition-all ${v.type === 'EMERGENCY VEHICLE' ? 'bg-red-500/10 border-red-500/50' : 'bg-white/5 border-white/5'}`}>
+                        <div className="flex justify-between mb-1">
+                            <span className={`text-[10px] font-black uppercase ${v.type === 'EMERGENCY VEHICLE' ? 'text-red-500' : 'text-blue-400'}`}>{v.type}</span>
+                            <span className="text-[10px] text-gray-500">{v.time}</span>
+                        </div>
+                        <p className="font-bold tracking-tight text-sm">{v.plate}</p>
+                    </div>
+                )) : (
+                    <p className="text-xs text-gray-500 italic text-center mt-10">Waiting for AI telemetry...</p>
+                )}
+            </div>
+        </div>
+    </div>
+)}
+
+                        {view === 'account' && (
+                            <div className="max-w-4xl mx-auto py-10 fade-in">
+                                <div className="flex gap-4 mb-10 overflow-x-auto">
+                                    {['profile', 'security', 'preferences'].map(tab => (
+                                        <button key={tab} onClick={() => setAccTab(tab)} className={`px-8 py-2.5 rounded-full font-bold text-xs uppercase tracking-widest transition-all shrink-0 ${accTab === tab ? 'bg-white text-black shadow-lg shadow-white/10' : 'bg-white/5 text-gray-500 hover:text-white'}`}>{tab}</button>
+                                    ))}
+                                </div>
+
+                                {accTab === 'profile' && (
+                                    <div className="grid grid-cols-3 gap-8">
+                                        <div className="glass p-12 rounded-[55px] text-center shadow-2xl relative overflow-hidden">
+                                            <div className="absolute top-0 left-0 w-full h-1 bg-blue-600" />
+                                            <div className="w-24 h-24 bg-blue-600 rounded-full mx-auto mb-8 flex items-center justify-center text-4xl font-black uppercase">{user.username[0] || 'A'}</div>
+                                            <h3 className="text-3xl font-black tracking-tight">{user.username}</h3>
+                                            <p className="text-blue-500 font-bold uppercase tracking-widest text-[10px] mt-2">Node Sector Master</p>
+                                        </div>
+                                        
+                                        <div className="col-span-2 glass p-12 rounded-[55px] space-y-8">
+                                            <div className="flex justify-between items-center">
+                                                <h4 className="text-xl font-black uppercase tracking-widest flex items-center gap-2">
+                                                    <Icon name="shield" size={18} /> Global Master Profile
+                                                </h4>
+                                                <button 
+                                                    onClick={() => isEditing ? handleUpdateProfile() : setIsEditing(true)}
+                                                    className={`px-6 py-2 rounded-xl font-bold text-xs transition-all ${isEditing ? 'bg-blue-600 shadow-lg shadow-blue-500/40' : 'bg-white/5 text-gray-400 hover:text-white'}`}
+                                                >
+                                                    {isEditing ? 'COMMIT SYNC' : 'EDIT DETAILS'}
+                                                </button>
+                                            </div>
+                                            
+                                            <div className="grid grid-cols-2 gap-6">
+                                                <div className="bg-white/5 p-6 rounded-3xl border border-white/5">
+                                                    <p className="text-[10px] font-bold text-gray-500 uppercase mb-2">Email Connection</p>
+                                                    {isEditing ? (
+                                                        <input className="profile-input" value={editData.email} onChange={e => setEditData({...editData, email: e.target.value})} />
+                                                    ) : (
+                                                        <p className="font-bold text-blue-400">{user.email || 'N/A'}</p>
+                                                    )}
+                                                </div>
+                                                <div className="bg-white/5 p-6 rounded-3xl border border-white/5">
+                                                    <p className="text-[10px] font-bold text-gray-500 uppercase mb-2">Secure Mobile</p>
+                                                    {isEditing ? (
+                                                        <input className="profile-input" value={editData.phone} onChange={e => setEditData({...editData, phone: e.target.value})} />
+                                                    ) : (
+                                                        <p className="font-bold">{user.phone || 'N/A'}</p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {accTab === 'security' && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                        <div className="glass p-10 rounded-[45px] space-y-6">
+                                            <h4 className="text-sm font-black uppercase tracking-widest flex items-center gap-2 text-blue-400">
+                                                <Icon name="lock" size={14} /> Password Rotation
+                                            </h4>
+                                            <div className="space-y-4">
+                                                <input type="password" placeholder="Current Key" className="profile-input" />
+                                                <input type="password" placeholder="New Secure Key" className="profile-input" />
+                                                <button className="w-full bg-blue-600 font-bold p-3 rounded-xl text-xs uppercase tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all">Update Access Key</button>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="glass p-10 rounded-[45px] space-y-6">
+                                            <h4 className="text-sm font-black uppercase tracking-widest flex items-center gap-2 text-blue-400">
+                                                <Icon name="shield" size={14} /> Global Verification
+                                            </h4>
+                                            <div className="space-y-4">
+                                                <div className="flex justify-between items-center p-4 bg-white/5 rounded-2xl border border-white/5">
+                                                    <div>
+                                                        <p className="text-xs font-bold">Two-Factor Auth</p>
+                                                        <p className="text-[9px] text-gray-500 uppercase font-black">Biometric Sync Required</p>
+                                                    </div>
+                                                    <div className="w-10 h-5 bg-green-500/20 rounded-full relative border border-green-500/30">
+                                                        <div className="w-3 h-3 bg-green-500 rounded-full absolute right-1 top-1"></div>
+                                                    </div>
+                                                </div>
+                                                <button className="w-full bg-white/5 border border-white/10 p-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">Rotate API Master Tokens</button>
+                                            </div>
+                                        </div>
+
+                                        <div className="col-span-1 md:col-span-2 glass p-10 rounded-[45px]">
+                                            <h4 className="text-sm font-black uppercase tracking-widest flex items-center gap-2 text-blue-400 mb-6">
+                                                <Icon name="clock" size={14} /> Access Session Log
+                                            </h4>
+                                            <div className="space-y-3">
+                                                {[
+                                                    { action: 'Login Success', dev: 'Chrome / MacOS', time: 'Today, 10:22 AM', ip: '192.168.1.1' },
+                                                    { action: 'Password Rotated', dev: 'Internal Node', time: 'Yesterday, 04:45 PM', ip: 'Local' }
+                                                ].map((log, i) => (
+                                                    <div key={i} className="flex justify-between items-center p-4 bg-black/20 rounded-2xl border border-white/5">
+                                                        <div>
+                                                            <p className="text-xs font-bold">{log.action}</p>
+                                                            <p className="text-[9px] text-gray-500 uppercase font-black">{log.dev} • {log.ip}</p>
+                                                        </div>
+                                                        <span className="text-[10px] font-bold text-gray-500">{log.time}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {accTab === 'preferences' && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                        <div className="glass p-10 rounded-[45px] space-y-8">
+                                            <h4 className="text-sm font-black uppercase tracking-widest flex items-center gap-2 text-blue-400">
+                                                <Icon name="activity" size={14} /> AI Engine Config
+                                            </h4>
+                                            <div className="space-y-6">
+                                                <div className="flex justify-between items-center">
+                                                    <div>
+                                                        <p className="text-xs font-bold">Voice Dispatch</p>
+                                                        <p className="text-[9px] text-gray-500 uppercase font-black mt-1">Audio Preemption Announcements</p>
+                                                    </div>
+                                                    <button onClick={() => setPrefs({...prefs, voice: !prefs.voice})} className={`w-12 h-6 rounded-full relative transition-all ${prefs.voice ? 'bg-blue-600 shadow-[0_0_15px_rgba(59,130,246,0.4)]' : 'bg-white/10'}`}>
+                                                        <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${prefs.voice ? 'right-1' : 'left-1'}`}></div>
+                                                    </button>
+                                                </div>
+                                                <div className="flex justify-between items-center">
+                                                    <div>
+                                                        <p className="text-xs font-bold">Neural Forensics</p>
+                                                        <p className="text-[9px] text-gray-500 uppercase font-black mt-1">Advanced Confidence Score Layer</p>
+                                                    </div>
+                                                    <button onClick={() => setPrefs({...prefs, neural: !prefs.neural})} className={`w-12 h-6 rounded-full relative transition-all ${prefs.neural ? 'bg-blue-600 shadow-[0_0_15px_rgba(59,130,246,0.4)]' : 'bg-white/10'}`}>
+                                                        <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${prefs.neural ? 'right-1' : 'left-1'}`}></div>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="glass p-10 rounded-[45px] space-y-8">
+                                            <h4 className="text-sm font-black uppercase tracking-widest flex items-center gap-2 text-blue-400">
+                                                <Icon name="globe" size={14} /> Network Locale
+                                            </h4>
+                                            <div className="space-y-6">
+                                                <div>
+                                                    <p className="text-[10px] font-black text-gray-500 uppercase mb-2 tracking-widest">Display Language</p>
+                                                    <select className="form-select w-full text-xs font-bold">
+                                                        <option value="en-US">English (Alpha-Node)</option>
+                                                        <option value="de-DE">Deutsch (Sector-Berlin)</option>
+                                                        <option value="hi-IN">Hindi (Sector-Delhi)</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] font-black text-gray-500 uppercase mb-2 tracking-widest">Measurement Units</p>
+                                                    <div className="flex gap-2">
+                                                        <button className="flex-1 p-3 bg-white text-black font-black rounded-xl text-[10px]">METRIC (km/h)</button>
+                                                        <button className="flex-1 p-3 bg-white/5 border border-white/10 font-black rounded-xl text-[10px] text-gray-500">IMPERIAL (mph)</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="col-span-1 md:col-span-2 glass p-10 rounded-[45px] flex justify-between items-center">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 bg-blue-600/20 rounded-xl flex items-center justify-center border border-blue-500/20">
+                                                    <Icon name="bell" size={18} className="text-blue-500" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-black uppercase tracking-widest">Global Notifications</p>
+                                                    <p className="text-[10px] text-gray-500 uppercase font-black">Sync push alerts for emergency preemption</p>
+                                                </div>
+                                            </div>
+                                            <button onClick={() => setPrefs({...prefs, notifications: !prefs.notifications})} className={`w-12 h-6 rounded-full relative transition-all ${prefs.notifications ? 'bg-blue-600 shadow-[0_0_15px_rgba(59,130,246,0.4)]' : 'bg-white/10'}`}>
+                                                <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${prefs.notifications ? 'right-1' : 'left-1'}`}></div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+<script>
+/* ===================================================== */
+/* THEME CONTROLLER (ZERO JSX CHANGES) */
+/* ===================================================== */
+
+(function () {
+    const root = document.documentElement;
+    const savedTheme = localStorage.getItem("theme") || "dark";
+    root.setAttribute("data-theme", savedTheme);
+
+    // Floating toggle button
+    const btn = document.createElement("button");
+    btn.innerHTML = savedTheme === "dark" ? "🌙" : "☀️";
+    btn.style.position = "fixed";
+    btn.style.bottom = "24px";
+    btn.style.right = "24px";
+    btn.style.zIndex = "99999";
+    btn.style.width = "52px";
+    btn.style.height = "52px";
+    btn.style.borderRadius = "50%";
+    btn.style.border = "none";
+    btn.style.cursor = "pointer";
+    btn.style.fontSize = "22px";
+    btn.style.background = "rgba(0,0,0,0.6)";
+    btn.style.color = "white";
+    btn.style.backdropFilter = "blur(10px)";
+    btn.style.boxShadow = "0 0 25px rgba(0,0,0,0.4)";
+
+    btn.onclick = () => {
+        const newTheme =
+            root.getAttribute("data-theme") === "dark"
+                ? "light"
+                : "dark";
+        root.setAttribute("data-theme", newTheme);
+        localStorage.setItem("theme", newTheme);
+        btn.innerHTML = newTheme === "dark" ? "🌙" : "☀️";
+    };
+
+    document.body.appendChild(btn);
+})();
+</script>
+
+</body>
+</html>
